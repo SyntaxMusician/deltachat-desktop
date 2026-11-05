@@ -1,4 +1,4 @@
-import { createWriteStream } from 'fs'
+import { appendFileSync, createWriteStream } from 'fs'
 import { join } from 'path'
 import { getLogsPath } from './application-constants'
 import { stdout, stderr } from 'process'
@@ -28,6 +28,10 @@ function logName() {
 
 export function createLogHandler() {
   const fileName = logName()
+  // DC_SYNC_LOG=1: write every line synchronously (appendFileSync) so that
+  // log lines survive a SIGSEGV hard crash of the process (the default
+  // createWriteStream buffers and loses everything on a hard crash).
+  const syncLogFile = process.env.DC_SYNC_LOG === '1' ? fileName : null
   const stream = createWriteStream(fileName, { flags: 'w' })
   /* ignore-console-log */
   console.log(`Logfile: ${fileName}`)
@@ -50,8 +54,11 @@ export function createLogHandler() {
       line = line.concat(
         [stacktrace, ...args].map(value => JSON.stringify(value))
       )
-      if (stream.writable) {
-        stream.write(`${line.join('\t')}\n`)
+      const lineText = `${line.join('\t')}\n`
+      if (syncLogFile !== null) {
+        appendFileSync(syncLogFile, lineText)
+      } else if (stream.writable) {
+        stream.write(lineText)
       } else {
         /* ignore-console-log */
         console.warn('tried to log something after logger shut down', {
