@@ -127,6 +127,18 @@ export default class ScreenController extends Component {
     }
     debouncedUpdateBadgeCounter()
 
+    // Reset the "already fetched existing messages" flag so that all
+    // existing emails in the mailbox are imported into chats on every startup.
+    await BackendRemote.rpc.setConfig(
+      accountId,
+      'fetch_existing_msgs',
+      '1'
+    )
+    await BackendRemote.rpc.setConfig(
+      accountId,
+      'fetched_existing_msgs',
+      '0'
+    )
     await BackendRemote.rpc.startIo(accountId)
     runtime.setDesktopSetting('lastAccount', accountId)
     log.info('system_info', await BackendRemote.rpc.getSystemInfo())

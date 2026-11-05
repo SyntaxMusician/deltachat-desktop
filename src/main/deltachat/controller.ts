@@ -136,6 +136,20 @@ export default class DeltaChatController extends EventEmitter {
 
     if (DesktopSettings.state.syncAllAccounts) {
       log.info('Ready, starting accounts io...')
+      // Reset "fetched_existing_msgs" flag for all accounts so that all
+      // existing emails in the mailbox are imported into chats on every startup.
+      const accountIds = this.account_manager.getAllAccountIds()
+      for (const accountId of accountIds) {
+        try {
+          await (this.jsonrpcRemote as any).rpc.setConfig(accountId, 'fetch_existing_msgs', '1')
+          await (this.jsonrpcRemote as any).rpc.setConfig(accountId, 'fetched_existing_msgs', '0')
+        } catch (error) {
+          log.warn(
+            `Failed to reset fetch_existing_msgs for account ${accountId}:`,
+            error
+          )
+        }
+      }
       this.account_manager.startIO()
       log.info('Started accounts io.')
     }
