@@ -28,6 +28,7 @@ import { BackendRemote, onDCEvent, Type } from '../../backend-com'
 import { selectedAccountId } from '../../ScreenController'
 import moment from 'moment'
 import { InlineVerifiedIcon } from '../VerifiedIcon'
+import { DeltaSwitch2 } from './DeltaDialog'
 
 function LastSeen({ timestamp }: { timestamp: number }) {
   const tx = useTranslationFunction()
@@ -133,6 +134,8 @@ export function ViewProfileInner({
     null
   )
   const [selfChatAvatar, setSelfChatAvatar] = useState<string | null>(null)
+  const [e2eeDisabled, setE2eeDisabled] = useState(false)
+  const [dmChatId, setDmChatId] = useState<number | null>(null)
   const isDeviceChat = contact.id === C.DC_CONTACT_ID_DEVICE
   const isSelfChat = contact.id === C.DC_CONTACT_ID_SELF
 
@@ -165,6 +168,34 @@ export function ViewProfileInner({
       })()
     }
   }, [accountId, isSelfChat])
+
+  useEffect(() => {
+    if (!isDeviceChat && !isSelfChat) {
+      ;(async () => {
+        const chatId = await BackendRemote.rpc.createChatByContactId(
+          accountId,
+          contact.id
+        )
+        setDmChatId(chatId)
+        const fullChat = await BackendRemote.rpc.getFullChatById(
+          accountId,
+          chatId
+        )
+        setE2eeDisabled((fullChat as any).e2eeDisabled === true)
+      })()
+    }
+  }, [accountId, contact.id, isDeviceChat, isSelfChat])
+
+  const onToggleE2ee = async () => {
+    if (dmChatId === null) return
+    const newValue = !e2eeDisabled
+    await BackendRemote.transport.request('set_chat_e2ee_enabled', [
+      accountId,
+      dmChatId,
+      !newValue,
+    ])
+    setE2eeDisabled(newValue)
+  }
 
   const CHATLISTITEM_CHAT_HEIGHT =
     Number(useThemeCssVar('--SPECIAL-chatlist-item-chat-height')) || 64
@@ -255,6 +286,15 @@ export function ViewProfileInner({
               </button>
             )}
           </div>
+          {!isDeviceChat && !isSelfChat && dmChatId !== null && (
+            <div style={{ padding: '5px 20px' }}>
+              <DeltaSwitch2
+                label={tx('autocrypt_prefer_e2ee')}
+                value={!e2eeDisabled}
+                onClick={onToggleE2ee}
+              />
+            </div>
+          )}
           {statusText != '' && (
             <>
               <DeltaDialogContentTextSeparator

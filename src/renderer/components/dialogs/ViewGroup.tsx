@@ -31,6 +31,7 @@ import { selectedAccountId } from '../../ScreenController'
 import { modifyGroup } from '../helpers/ChatMethods'
 import { DcEventType } from '@deltachat/jsonrpc-client'
 import { InlineVerifiedIcon } from '../VerifiedIcon'
+import { DeltaSwitch2 } from './DeltaDialog'
 
 const log = getLogger('renderer/ViewGroup')
 
@@ -207,6 +208,25 @@ function ViewGroupInner(props: {
     null
   )
 
+  const accountId = selectedAccountId()
+  const [e2eeDisabled, setE2eeDisabled] = useState<boolean>(
+    (chat as any).e2eeDisabled === true
+  )
+  useEffect(() => {
+    setE2eeDisabled((chat as any).e2eeDisabled === true)
+  }, [(chat as any).e2eeDisabled])
+
+  const onToggleE2ee = async () => {
+    const newValue = !e2eeDisabled
+    await BackendRemote.transport.request('set_chat_e2ee_enabled', [
+      accountId,
+      chat.id,
+      !newValue,
+    ])
+    setE2eeDisabled(newValue)
+  }
+
+
   return (
     <>
       {!profileContact && (
@@ -251,6 +271,15 @@ function ViewGroupInner(props: {
                       groupMembers.length == 1 ? 'one' : 'other'
                     )}
               </div>
+              {!isBroadcast && (
+                <div style={{ padding: '5px 20px' }}>
+                  <DeltaSwitch2
+                    label={tx('autocrypt_prefer_e2ee')}
+                    value={!e2eeDisabled}
+                    onClick={onToggleE2ee}
+                  />
+                </div>
+              )}
               <div className='group-member-contact-list-wrapper'>
                 {!chatDisabled && (
                   <>
