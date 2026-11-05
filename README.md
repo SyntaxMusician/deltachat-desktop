@@ -1,198 +1,96 @@
-[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+# Delta Chat Desktop (fork) <a id="deltachat-desktop"></a>
 
-# Delta Chat Desktop <a id="deltachat-desktop"></a>
+This is a fork of [deltachat/deltachat-desktop](https://github.com/deltachat/deltachat-desktop),
+based on the upstream tag **v1.40.4**, published at
+<https://github.com/SyntaxMusician/deltachat-desktop>.
 
-**Desktop Application for [delta.chat](https://delta.chat)**
+It is the **Desktop Application for [delta.chat](https://delta.chat)** —
+an email-based messenger that works with any email account.
 
 <center><img src="README_ASSETS/screenshot.png"/></center>
 
-## Documentation Links <a id="docs"></a>
+## Differences from upstream deltachat-desktop <a id="differences"></a>
 
-<table>
-  <thead>
-    <tr><th>For Users</th><th>For Developers</th></tr>
-  </thead>
-<tbody>
-<tr><td>
+On top of upstream v1.40.4 this fork adds:
 
-[TROUBLESHOOTING](./docs/TROUBLESHOOTING.md)
+1. **Show all existing inbox messages on first login** — on login/startup the
+   app resets the `fetch_existing_msgs` / `fetched_existing_msgs` settings
+   (`src/main/deltachat/controller.ts`, `src/renderer/ScreenController.tsx`),
+   so the whole existing inbox is imported into chats instead of only the
+   newest messages. The heavy lifting is done by the patched core
+   (see below).
+2. **Per-chat end-to-end encryption toggle** — a "Prefer End-To-End
+   Encryption" switch in the group profile
+   (`src/renderer/components/dialogs/ViewGroup.tsx`) and in the contact
+   profile for 1:1 chats (`src/renderer/components/dialogs/ViewProfile.tsx`).
+   It calls the `set_chat_e2ee_enabled` JSON-RPC method and reads the
+   `e2eeDisabled` field of `get_full_chat_by_id` — both provided by the
+   patched core.
+3. (minor) `DC_SYNC_LOG=1` env var for synchronous log flushing that survives
+   hard crashes (`src/main/log-handler.ts`).
 
-[CLI flags](./docs/CLI_FLAGS.md)
+Additionally, the upstream CI/IDE/Transifex configs (`.github/`, `.vscode/`,
+`.tx/`) were removed, and the `deltachat-node` dependency does **not** come
+from npm — it points at the patched core distribution
+<https://github.com/SyntaxMusician/deltachat-node-custom>
+(`"deltachat-node": "git+https://github.com/SyntaxMusician/deltachat-node-custom.git"`
+in `package.json`, pinned to commit `77f17f2` in `package-lock.json`).
+`deltachat-node-custom` is deltachat-core-rust v1.121.0 plus the Node.js
+bindings of the historical `deltachat-node@1.121.0` npm package (no prebuilt
+binaries) plus the two core patches above (fetch all inbox messages, per-chat
+E2EE toggle exposed over JSON-RPC).
 
-[Keybindings](./docs/KEYBINDINGS.md)
+## Building from source <a id="source"></a>
 
-[How to make custom Themes](./docs/THEMES.md)
+Prerequisites:
 
-</td><td>
-
-[Logging](./docs/LOGGING.md)
-
-[Documentation for Developers](./docs/DEVELOPMENT.md)
-
-[Styling Guidelines](./docs/STYLES.md)
-
-[How to update core](./docs/UPDATE_CORE.md)
-
-[How to do end to end testing](./docs/E2E-TESTING.md)
-
-[How to do a release](./docs/RELEASE_WORKFLOW.md)
-
-</td>
-</tr>
-</tbody>
-</table>
-
-## Table of Contents
-
-<details><summary>Click to expand</summary>
-
-- [deltachat-desktop](#deltachat-desktop)
-  - [Documentation Links](#docs)
-  - [Table of Contents](#table-of-contents)
-  - [Install](#install-)
-    - [Linux](#linux-)
-      - [Flatpak](#flatpak-)
-      - [Arch Linux](#arch-linux-)
-    - [MacOS](#mac-os-)
-      - [Homebrew](#homebrew)
-      - [DMG](#dmg)
-    - [Windows](#windows)
-    - [From Source](#from-source-)
-    - [Troubleshooting](#troubleshooting-)
-  - [Configuration and Databases](#configuration-and-databases-)
-  - [How to Contribute](#how-to-contribute-)
-  - [Logging](#logging-)
-  - [License](#license-)
-
-</details>
-
-## Install <a id="install"></a>
-
-The application can be downloaded from **<https://get.delta.chat>**. Here you'll find binary releases for all supported platforms. See below for platform specific instructions. If you run into any problems please consult the [Troubleshooting](#troubleshooting) section below.
-
-### Linux <a id="linux"></a>
-
-#### Flatpak <a id="flatpak"></a>
-
-The primary distribution-independed way to install is to use the
-flatpak build.
-This is maintained in [it's own
-repository](https://github.com/flathub/chat.delta.desktop), however a
-pre-built binary can be downloaded and installed from
-[flathub](https://flathub.org/apps/details/chat.delta.desktop) which
-also has a setup guide for many Linux platforms.
-
-#### Arch Linux <a id="arch-linux"></a>
-
-> **WARNING: Currently the AUR package compiles from latest master. This can be more recent as the latest release, introduce new features but also new bugs.**
-
-If you have a AUR helper like yay or paru installed, you can install it by running `yay -S deltachat-desktop-git` and following the instruction in your terminal.
-
-Otherwise you can still do it manually:
-
-<details>
-<summary>Show manual steps</summary>
-
-```sh
-# Download the latest snapshot of the PKGBUILD
-wget https://aur.archlinux.org/cgit/aur.git/snapshot/deltachat-desktop-git.tar.gz
-
-# extract the archive and rm the archive file afterwards
-tar xzfv deltachat-desktop-git.tar.gz && rm deltachat-desktop-git.tar.gz
-
-# cd into extracted folder
-cd deltachat-desktop-git
-
-# build package
-makepkg -si
-
-# install package (you need to replace <version> with whatever version makepkg built)
-sudo pacman -U deltachat-desktop-git-<version>.tar.xz
-```
-
-</details>
-
-### Mac OS <a id="mac"></a>
-
-#### Homebrew
-
-```
-$ brew install --cask deltachat
-```
-
-#### DMG
-
-Simply install the `.dmg` file as you do it with all other software on mac.
-
-### Windows <a id="windows"></a>
-
-You can find the downloads for windows on <https://get.delta.chat>, though we recomend using the [Microsoft Store release](https://www.microsoft.com/en-us/p/deltachat/9pjtxx7hn3pk?activetab=pivot:overviewtab), because there you get automatic updates.
-
-### From Source <a id="source"></a>
-
-> ⚠ This is mostly for development purposes, this won't install/integrate deltachat into your system.
-> So unless you know what you are doing, we recommend to stick to the methods above if possible.
+- **Node.js >= 16** (see `engines` in `package.json`)
+- **Rust 1.65+**, a **C compiler** and **perl** — `npm install` runs the
+  install script of `deltachat-node-custom`, which builds the Rust core and
+  the native addon from source (vendored OpenSSL and sqlcipher); no prebuilt
+  core binaries are downloaded.
 
 ```sh
 # Get the code
-$ git clone https://github.com/deltachat/deltachat-desktop.git
+$ git clone https://github.com/SyntaxMusician/deltachat-desktop.git
 $ cd deltachat-desktop
 
-# Install dependencies
+# Install dependencies (this also builds the patched core from source;
+# the core sources come from deltachat-node-custom automatically via npm,
+# no manual checkout needed)
 $ npm install
 
-# Build the app (only needed on the first time or if the code was changed)
+# Build the app (backend + frontend; only needed on the first time or if the code was changed)
 $ npm run build
 
-# Start the application:
+# Start the application (dev run)
 $ npm start
 ```
 
-For development with local deltachat-core read the [docs](docs/UPDATE_CORE.md)
+To build installers use `npm run pack:linux` (AppImage/deb), `npm run pack:win`
+(nsis/portable) or `npm run pack:mac` (dmg/mas) — see the `scripts` section in
+`package.json` for all variants.
 
-### Troubleshooting <a id="troubleshooting"></a>
+To update the core in this fork, see [docs/UPDATE_CORE.md](docs/UPDATE_CORE.md).
 
-This module builds on top of `deltachat-core-rust`, which in turn has external dependencies. Instructions below assumes a Linux system (e.g. Ubuntu 18.10).
+## Documentation <a id="docs"></a>
 
-If you get errors when running `npm install`, they might be related to the _build_ dependency `rust`.
+For users: [TROUBLESHOOTING](./docs/TROUBLESHOOTING.md),
+[CLI flags](./docs/CLI_FLAGS.md), [Keybindings](./docs/KEYBINDINGS.md),
+[custom Themes](./docs/THEMES.md).
 
-If `rust` or `cargo` is missing:
-Follow the instruction on <https://rustup.rs/> to install rust and cargo.
-
-Then try running `npm install` again.
-
-Make sure that your nodejs version is `16.0.0` or newer.
-
-If you still get errors look at the instructions in the deltchat-node and
-deltachat-rust-core README files to set things up **or write an issue**.
-
-## Configuration and Databases <a id="config-and-db"></a>
-
-The configuration files and database are stored at [application-config's default file paths](https://www.npmjs.com/package/application-config#config-location).
-
-Each database is a SQLite file that represents the account for a given email address.
-
-## How to Contribute <a id="how-to-contribute"></a>
-
-Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-
-For translations see our transifex page: https://www.transifex.com/delta-chat/public/
-
-For other ways to contribute: https://delta.chat/en/contribute
-
-## Logging <a id="logging"></a>
-
-You can access the log folder and the current log file under the `View->Developer` menu:
-
-<center><img src="README_ASSETS/devMenu.png"/></center>
-
-Read [docs/LOGGING.md](docs/LOGGING.md) for an explanation about our logging system. (available **options**, log **location** and information about the used Log-**Format**)
+For developers: [Logging](./docs/LOGGING.md),
+[DEVELOPMENT](./docs/DEVELOPMENT.md), [Styling Guidelines](./docs/STYLES.md),
+[Update core](./docs/UPDATE_CORE.md), [E2E testing](./docs/E2E-TESTING.md),
+[Release workflow](./docs/RELEASE_WORKFLOW.md).
 
 ## License <a id="license"></a>
 
-Licensed under `GPL-3.0-or-later`, see [LICENSE](./LICENSE) file for details.
+Licensed under `GPL-3.0-or-later`, see the [LICENSE](./LICENSE) file for
+details and [NOTICE.md](./NOTICE.md) for attribution.
 
-> Copyright © 2019 `DeltaChat` contributors.
+> Copyright © 2019 `DeltaChat` contributors (upstream), plus the local
+> modifications of this fork.
 
 > This program is free software: you can redistribute it and/or modify
 > it under the terms of the GNU General Public License as published by
